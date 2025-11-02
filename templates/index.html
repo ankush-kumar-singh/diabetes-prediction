@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Diabetes Predictor</title>
+  <style>
+    /* Simple, small CSS for a clean look */
+    :root{
+      --bg:#f6f8fb;
+      --card:#ffffff;
+      --accent:#2b6cb0;
+      --muted:#6b7280;
+      --success:#16a34a;
+      --danger:#dc2626;
+      --shadow: 0 6px 18px rgba(43,108,176,0.08);
+      font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    body{
+      margin:0;
+      background:var(--bg);
+      color:#111827;
+      display:flex;
+      min-height:100vh;
+      align-items:center;
+      justify-content:center;
+      padding:28px;
+    }
+    .card{
+      width:100%;
+      max-width:760px;
+      background:var(--card);
+      border-radius:12px;
+      box-shadow:var(--shadow);
+      padding:22px;
+    }
+    h1{ margin:0 0 6px 0; font-size:20px; }
+    p.lead{ margin:0 0 18px 0; color:var(--muted); font-size:13px; }
+    form{ display:grid; grid-template-columns: repeat(4,1fr); gap:12px; }
+    label{ display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+    input[type="number"], input[type="text"]{
+      width:100%;
+      padding:10px 12px;
+      border:1px solid #e6e9ef;
+      border-radius:8px;
+      font-size:14px;
+      box-sizing:border-box;
+    }
+    .full{ grid-column: 1 / -1; }
+    .actions{ display:flex; gap:10px; align-items:center; margin-top:12px; }
+    button{
+      background:var(--accent);
+      color:white;
+      padding:10px 14px;
+      border:none;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    button.secondary{
+      background:transparent;
+      color:var(--accent);
+      border:1px solid #d0e2ff;
+    }
+    .result{
+      margin-top:14px;
+      padding:12px;
+      border-radius:8px;
+      background:#f1f9f3;
+      color:var(--success);
+      display:none;
+    }
+    .error{
+      background:#fff5f5;
+      color:var(--danger);
+      padding:10px;
+      border-radius:8px;
+      display:none;
+      margin-top:12px;
+    }
+    small.hint{ color:var(--muted); display:block; margin-top:6px; grid-column:1/-1; font-size:12px; }
+    @media (max-width:720px){
+      form{ grid-template-columns: repeat(2,1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Diabetes Predictor</h1>
+    <p class="lead">Enter the basic health values below and click <strong>Predict</strong>. This is a demo (educational only).</p>
+
+    <form id="predict-form">
+      <div>
+        <label for="Pregnancies">Pregnancies</label>
+        <input id="Pregnancies" name="Pregnancies" type="number" min="0" step="1" value="0" required>
+      </div>
+
+      <div>
+        <label for="Glucose">Glucose (mg/dL)</label>
+        <input id="Glucose" name="Glucose" type="number" min="0" step="0.1" value="120" required>
+      </div>
+
+      <div>
+        <label for="BloodPressure">Blood Pressure (mm Hg)</label>
+        <input id="BloodPressure" name="BloodPressure" type="number" min="0" step="0.1" value="70" required>
+      </div>
+
+      <div>
+        <label for="SkinThickness">SkinThickness (mm)</label>
+        <input id="SkinThickness" name="SkinThickness" type="number" min="0" step="0.1" value="20">
+      </div>
+
+      <div>
+        <label for="Insulin">Insulin (mu U/ml)</label>
+        <input id="Insulin" name="Insulin" type="number" min="0" step="0.1" value="79">
+      </div>
+
+      <div>
+        <label for="BMI">BMI</label>
+        <input id="BMI" name="BMI" type="number" min="0" step="0.1" value="25.0" required>
+      </div>
+
+      <div>
+        <label for="DiabetesPedigreeFunction">DiabetesPedigreeFunction</label>
+        <input id="DiabetesPedigreeFunction" name="DiabetesPedigreeFunction" type="number" min="0" step="0.001" value="0.5" required>
+      </div>
+
+      <div>
+        <label for="Age">Age (years)</label>
+        <input id="Age" name="Age" type="number" min="0" step="1" value="28" required>
+      </div>
+
+      <small class="hint">Make sure your backend predictor is running at <strong>/predict</strong> and accepts JSON with these keys. If using Flask locally, enable CORS or serve this file from the same server.</small>
+
+      <div class="full actions">
+        <button type="submit">Predict</button>
+        <button type="button" class="secondary" id="reset-btn">Reset</button>
+        <div style="flex:1"></div>
+      </div>
+    </form>
+
+    <div id="result" class="result"></div>
+    <div id="error" class="error"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('predict-form');
+    const resultBox = document.getElementById('result');
+    const errorBox = document.getElementById('error');
+    const resetBtn = document.getElementById('reset-btn');
+
+    // URL of your backend prediction endpoint (change if needed)
+    const PREDICT_ENDPOINT = '/predict';
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      resultBox.style.display = 'none';
+      errorBox.style.display = 'none';
+
+      // collect values
+      const data = {
+        Pregnancies: Number(document.getElementById('Pregnancies').value),
+        Glucose: Number(document.getElementById('Glucose').value),
+        BloodPressure: Number(document.getElementById('BloodPressure').value),
+        SkinThickness: Number(document.getElementById('SkinThickness').value) || 0,
+        Insulin: Number(document.getElementById('Insulin').value) || 0,
+        BMI: Number(document.getElementById('BMI').value),
+        DiabetesPedigreeFunction: Number(document.getElementById('DiabetesPedigreeFunction').value),
+        Age: Number(document.getElementById('Age').value)
+      };
+
+      try {
+        // POST JSON to backend
+        const resp = await fetch(PREDICT_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error(`Server returned ${resp.status}: ${text}`);
+        }
+
+        const json = await resp.json();
+
+        // Expect backend to return something like: { "diabetes_probability": 0.23, "prediction": 0 }
+        // If your backend returns only probability, we compute label using 0.5 threshold
+        const prob = ('diabetes_probability' in json) ? Number(json.diabetes_probability) : (json.probability || json.prob);
+        const pred = ('prediction' in json) ? json.prediction : (prob >= 0.5 ? 1 : 0);
+
+        resultBox.style.display = 'block';
+        resultBox.innerHTML = `
+          <strong>Prediction:</strong> ${pred === 1 ? 'Diabetic' : 'Not Diabetic'} <br>
+          <strong>Probability:</strong> ${(prob*100).toFixed(2)}%
+        `;
+      } catch (err) {
+        errorBox.style.display = 'block';
+        errorBox.textContent = 'Error: ' + err.message;
+      }
+    });
+
+    resetBtn.addEventListener('click', () => {
+      form.reset();
+      // optional: restore default values
+      document.getElementById('Pregnancies').value = 0;
+      document.getElementById('Glucose').value = 120;
+      document.getElementById('BloodPressure').value = 70;
+      document.getElementById('SkinThickness').value = 20;
+      document.getElementById('Insulin').value = 79;
+      document.getElementById('BMI').value = 25.0;
+      document.getElementById('DiabetesPedigreeFunction').value = 0.5;
+      document.getElementById('Age').value = 28;
+      resultBox.style.display = 'none';
+      errorBox.style.display = 'none';
+    });
+  </script>
+</body>
+</html>
